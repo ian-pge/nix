@@ -1,5 +1,5 @@
 {
-  description = "Example flake for ZSH configuration with Home Manager";
+  description = "flake for ubuntu nix in docker";
 
   inputs = {
     # Nixpkgs: pick whichever branch/channel you like
@@ -31,6 +31,54 @@
               nettools
             ];
 
+            programs.fish = {
+              enable = true;
+              interactiveShellInit = ''
+                set fish_greeting
+          
+                functions = {
+                  starship_transient_prompt_func.body = ''starship module time'';
+                  prompt_newline = {
+                    onEvent = "fish_postexec";
+                    body = ''echo'';
+                  };
+                };
+
+                fish_vi_key_bindings
+                bind yy fish_clipboard_copy
+                bind -M visual y fish_clipboard_copy
+                # bind -M default p forward-char-passive fish_clipboard_paste backward-char-passive
+                # bind -M default P fish_clipboard_paste
+          
+                function _aichat_fish
+                    set -l text (commandline)
+                    if test -n "$text"
+                        commandline -r ""                     # clear your input
+                        printf '\r\e[2C\e[K'                 # show icon at col 3, clear rest of line
+                        set -l out (aichat -e -- "$text")     # run AI
+                        commandline -r "$out"                 # replace with AI output
+                        commandline -f repaint                 # redraw prompt (overwrites the icon)
+                    end
+                end
+                bind \ee _aichat_fish
+          
+              '';
+              plugins = [
+                {
+                  name = "bass";
+                  src = pkgs.fishPlugins.bass.src;
+                }
+              ];
+            };
+
+            programs.neovim = {
+              enable = true;
+              extraLuaConfig = ''
+                vim.opt.number = true
+                vim.opt.shortmess:append("I")
+              '';
+            };
+
             programs.fzf = {
                 enable = true;
                 enableZshIntegration = true;
@@ -40,155 +88,123 @@
                 enable = true;
             };
 
-            # Activate Home Manager's ZSH integration
-            programs.zsh = {
-              sessionVariables = {
-                LANG = "en_US.UTF-8";
-              };
-              enable = true;
-              enableCompletion = true;
-                      plugins = [
-                            { name = "zsh-vi-mode";
-                              src  = pkgs.zsh-vi-mode;
-                              file = "share/zsh-vi-mode/zsh-vi-mode.plugin.zsh";
-                            }
-                            { name = "fast-syntax-highlighting";
-                              src  = pkgs.zsh-fast-syntax-highlighting;
-                              file = "share/zsh/site-functions/fast-syntax-highlighting.plugin.zsh";
-                            }
-                            { name = "zsh-autosuggestions";
-                              src  = pkgs.zsh-autosuggestions;
-                              file = "share/zsh-autosuggestions/zsh-autosuggestions.zsh";
-                            }
-                            { name = "fzf-tab";
-                              src  = pkgs.zsh-fzf-tab;
-                              file = "share/fzf-tab/fzf-tab.plugin.zsh";
-                            }
-                ];
-              shellAliases = {
-                build-config = "nix build .#homeConfigurations.zed.activationPackage --extra-experimental-features flakes --extra-experimental-features nix-command --out-link ~/result && ~/result/activate";
-              };
-            };
-            programs.oh-my-posh = {
-                    enable = true;
-                    enableZshIntegration = true;
-                    settings =  {
-                        "palette" = {
-                          "blue"      = "#8AADF4";
-                          "closer"    = "p:os";
-                          "green"     = "#a6da95";
-                          "lavender"  = "#B7BDF8";
-                          "mauve"     = "#c6a0f6";
-                          "os"        = "#ACB0BE";
-                          "peach"     = "#F5A97F";
-                          "pink"      = "#F5BDE6";
-                          "sapphire"  = "#7dc4e4";
-                          "yellow"    = "#eed49f";
-                          "sky"       = "#91d7e3";
-                        };
-                        "transient_prompt" = {
-                          "template"   = "{{now | date \"15:04\"}} ";
-                          "foreground" = "p:yellow";
-                          "background" = "transparent";
-                        };
-                        "blocks" = [
-                          {
-                            "type"      = "prompt";
-                            "alignment" = "left";
-                            "newline"   = true;
-                            "segments" = [
-                              {
-                                "template"   = "{{.Icon}}  ";
-                                "foreground" = "p:sky";
-                                "type"       = "os";
-                                "style"      = "plain";
-                              }
-                              {
-                                "template"   = "{{.UserName }}@{{ .HostName }} ";
-                                "foreground" = "p:blue";
-                                "type"       = "session";
-                                "style"      = "plain";
-                              }
-                              {
-                                "properties" = {
-                                  "folder_icon" = "..\ue5fe..";
-                                  "home_icon"   = "~";
-                                  "style"       = "agnoster_full";
-                                };
-                                "template"   = "{{ .Path }} ";
-                                "foreground" = "p:pink";
-                                "type"       = "path";
-                                "style"      = "plain";
-                              }
-                              {
-                                "properties" = {
-                                  "branch_icon"          = "\ue725 ";
-                                  "cherry_pick_icon"     = "\ue29b ";
-                                  "commit_icon"          = "\uf417 ";
-                                  "fetch_status"         = false;
-                                  "fetch_upstream_icon"  = false;
-                                  "merge_icon"           = "\ue727 ";
-                                  "no_commits_icon"      = "\uf0c3 ";
-                                  "rebase_icon"          = "\ue728 ";
-                                  "revert_icon"          = "\uf0e2 ";
-                                  "tag_icon"             = "\uf412 ";
-                                };
-                                "template"   = "{{ .HEAD }} ";
-                                "foreground" = "p:lavender";
-                                "type"       = "git";
-                                "style"      = "plain";
-                              }
-                            ];
-                          }
-                          {
-                            "type"      = "prompt";
-                            "alignment" = "left";
-                            "newline"   = true;
-                            "segments" = [
-                              {
-                                "template"             = "❯";
-                                "type"                 = "text";
-                                "style"                = "plain";
-                                "foreground_templates" = [
-                                  "{{if gt .Code 0}}red{{end}}"
-                                  "{{if eq .Code 0}}green{{end}}"
-                                ];
-                              }
-                            ];
-                          }
-                          {
-                            "type"      = "rprompt";
-                            "alignment" = "right";
-                            "segments" = [
-                              {
-                                "properties" = {
-                                  "always_enabled" = true;
-                                  "style"          = "round";
-                                };
-                                "template"   = "{{ .FormattedMs }} ";
-                                "foreground" = "p:peach";
-                                "type"       = "executiontime";
-                                "style"      = "plain";
-                              }
-                            ];
-                          }
-                        ];
-                        "version"     = 3;
-                        "final_space" = true;
-                      };
+            programs.starship = {
+                enable = true;
+                enableFishIntegration = true;
+                enableTransience = true;
+            
+                settings = {
+                  # ─ Global options ─────────────────────────────────────────────────────────
+                  right_format = "$cmd_duration"; # right-prompt → 27 ms
+            
+                  # Palette (same hex codes you used in Oh-My-Posh) ─────────────────────────
+                  palette = "catppuccin";
+            
+                  palettes.catppuccin = {
+                    blue = "#8AADF4";
+                    green = "#a6da95";
+                    lavender = "#B7BDF8";
+                    mauve = "#c6a0f6";
+                    os = "#ACB0BE";
+                    peach = "#F5A97F";
+                    pink = "#F5BDE6";
+                    sapphire = "#7dc4e4";
+                    yellow = "#eed49f";
+                    sky = "#91d7e3";
+                    flamingo = "#f0c6c6";
+                    rosewater = "#4dbd6";
+                    maroon = "#ee99a0";
+                    teal = "#8bd5ca";
+                  };
+            
+                  # ─ What gets printed on the left prompt line ─────────────────────────────
+                  format = ''
+                    $os $username@$hostname $directory $git_branch$line_break$character
+                  '';
+            
+                  add_newline = false;
+            
+                  # 1 • Current time (18:49) -------------------------------------------------
+                  time = {
+                    disabled = false;
+                    time_format = "%H:%M";
+                    style = "fg:yellow";
+                    format = "[$time]($style) "; # trailing space ␠
+                  };
+            
+                  # 2 • OS icon (snow-flake Nix) --------------------------------------------
+                  os = {
+                    disabled = false;
+                    style = "fg:sky";
+                    format = "[$symbol]($style)";
+                    symbols = {
+                      NixOS = "";
+                      Ubuntu = "";
+                      Arch = "";
+                      Fedora = "";
+                      Debian = "";
+                    };
+                  };
+            
+                  # 3 • user@host ------------------------------------------------------------
+                  username = {
+                    show_always = true;
+                    style_user = "fg:pink";
+                    style_root = "fg:red";
+                    format = "[$user]($style)";
+                  };
+                  hostname = {
+                    ssh_only = false;
+                    style = "fg:mauve";
+                    format = "[$hostname]($style)"; # trailing space
+                  };
+            
+                  # 4 • Path (“~/workspace/…”) ----------------------------------------------
+                  directory = {
+                    truncation_length = 0;
+                    truncate_to_repo = false;
+                    home_symbol = "~";
+                    style = "fg:flamingo";
+                    read_only = " ";
+                    read_only_style = "fg:flamingo";
+                    format = "[$read_only]($read_only_style)[$path]($style)";
+                    repo_root_format = "[$read_only]($read_only_style)[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($repo_root_style)";
+                    before_repo_root_style = "fg:flamingo";
+                    repo_root_style = "fg:teal";
+                  };
+            
+                  # 5 • Git HEAD -------------------------------------------------------------
+                  git_branch = {
+                    symbol = " ";
+                    style = "fg:teal";
+                    format = "[$symbol$branch]($style) ";
+                  };
+            
+                  container = {
+                    symbol = " ";
+                    style = "fg:maroon";
+                    format = "[$symbol$container]($style) ";
+                  };
+            
+                  # ── second line: prompt symbol ❯  ─────────────────────────────────────────
+                  character = {
+                    success_symbol = "[❯](green)";
+                    error_symbol = "[❯](fg:red)";
+                    vimcmd_symbol = "[❮](fg:peach)";
+                    vimcmd_visual_symbol = "[❮](fg:mauve)";
+                    vimcmd_replace_symbol = "[❮](fg:sky)";
+                    vimcmd_replace_one_symbol = "[❮](fg:pink)";
+                  };
+            
+                  # ── right prompt: elapsed time (27 ms) ───────────────────────────────────
+                  cmd_duration = {
+                    min_time = 0; # always display
+                    show_milliseconds = true;
+                    style = "fg:peach";
+                    format = "[$duration]($style)";
+                  };
                 };
-
-            # Insert your custom snippet here
-            programs.zsh.initExtra = ''
-              . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-              export TERM=xterm-256color
-              bindkey -v
-              if [ ! -f ~/.zshrc.local ]; then
-                touch ~/.zshrc.local
-              fi
-              source ~/.zshrc.local
-            '';
-          }
+              };
         ];
       };
     };
